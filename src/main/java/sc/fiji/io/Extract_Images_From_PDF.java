@@ -7,53 +7,60 @@
 
 package sc.fiji.io;
 
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+
+import org.apache.pdfbox.cos.COSName;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDResources;
+import org.apache.pdfbox.pdmodel.graphics.PDXObject;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+
 import ij.IJ;
 import ij.ImagePlus;
 import ij.plugin.PlugIn;
 
-import java.awt.image.BufferedImage;
-
-import org.jpedal.PdfDecoder;
-import org.jpedal.objects.PdfImageData;
-
-/** Extract all images from a PDF file (or from an URL given as argument),
- *  and open them all within ImageJ in their original resolution.
-*/
+/**
+ * Extract all images from a PDF file (or from an URL given as argument), and
+ * open them all within ImageJ in their original resolution.
+ */
 public class Extract_Images_From_PDF implements PlugIn {
+
+	@Override
 	public void run(String arg) {
 
 		final String path = PDF_Viewer.getPath(arg);
 		if (null == path) return;
-		PdfDecoder decoder = null;
 
+		PDDocument document = null;
 		try {
-			decoder = new PdfDecoder(false);
-			decoder.setExtractionMode(PdfDecoder.RAWIMAGES | PdfDecoder.FINALIMAGES);
-			if (path.startsWith("http://")) decoder.openPdfFileFromURL(path);
-			else decoder.openPdfFile(path);
+			document = PDDocument.load(new File(path));
 
-			final int page_count = decoder.getPageCount();
+			int pageNum = 0;
+			for (PDPage page : document.getPages()) {
+				IJ.showStatus("Decoding page " + pageNum);
 
-			for (int page=1; page<=page_count; page++) {
-				IJ.showStatus("Decoding page " + page);
-				decoder.decodePage(page);
-				final PdfImageData images = decoder.getPdfImageData();
-				final int image_count = images.getImageCount();
-
-				for (int i=0; i<image_count; i++) {
-					IJ.showStatus("Opening image " + i + "/" + image_count + " from page " + page + "/" + page_count);
-					String name = images.getImageName(i);
-					BufferedImage image = decoder.getObjectStore().loadStoredImage("R" + name);
-					new ImagePlus(name, image).show();
+				PDResources pdResources = page.getResources();
+				for (COSName cosName : pdResources.getXObjectNames()) {
+					PDXObject object = pdResources.getXObject(cosName);
+					if (object instanceof PDImageXObject) {
+						String imgName = cosName.getName();
+						BufferedImage image = ((PDImageXObject) object).getImage();
+						new ImagePlus(imgName, image).show();
+					}
 				}
+
+				pageNum++;
 			}
-			IJ.showStatus("Done.");
-		} catch (Exception e) {
+		}
+		catch (IOException e) {
 			IJ.log("Error: " + e);
 			e.printStackTrace();
-		} finally {
-			decoder.flushObjectValues(true);
-			decoder.closePdfFile();
 		}
+
+		IJ.showStatus("Done.");
 	}
+
 }

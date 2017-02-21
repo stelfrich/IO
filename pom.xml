@@ -206,6 +206,11 @@
 			<groupId>com.jcraft</groupId>
 			<artifactId>jzlib</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>2.0.4</version>
+		</dependency>
 
 		<!-- Runtime dependencies -->
 		<dependency>
